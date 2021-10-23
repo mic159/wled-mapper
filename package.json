@@ -1,0 +1,17 @@
+{
+  "name": "wled-mapper",
+  "private": true,
+  "version": "0.0.1",
+  "dependencies": {
+    "fomantic-ui-css": "^2.8.8",
+    "konva": "^8.2.2",
+    "parcel": "^2.0.0",
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2",
+    "react-konva": "^17.0.2-5",
+    "semantic-ui-react": "^2.0.4"
+  },
+  "scripts": {
+    "dev": "parcel index.html"
+  }
+}
