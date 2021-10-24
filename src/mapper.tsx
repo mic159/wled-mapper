@@ -1,12 +1,8 @@
 import React, { useState, useCallback, useEffect, useMemo } from "react"
+import { Stage, Layer, Circle, Group, Text, Line } from 'react-konva'
 
-import { Stage, Layer, Circle, Group, Text } from 'react-konva'
+import { NodeConfig } from './types'
 
-
-export interface NodeConfig {
-  ledIndex: number
-  posIndex: number
-}
 
 interface DraggableNode extends NodeConfig {
   x: number
@@ -22,20 +18,31 @@ interface Props {
 const CIRCLE_RADIUS = 13;
 const SPACING = 50;
 
+function normalize(val: number): number {
+  return Math.max(-1, Math.min(1, val))
+}
+
 function generatePositions(data: NodeConfig[]): DraggableNode[] {
   let verticalIndex = 0
   let prevPos = 0
-  return data.sort((a, b) => a.ledIndex - b.ledIndex).map((node) => {
-    if (node.posIndex < prevPos) {
-      verticalIndex += 1
-    }
-    prevPos = node.posIndex
-    return {
-      ...node,
-      x: 25 + node.posIndex * SPACING,
-      y: 25 + verticalIndex * SPACING,
-    }
-  })
+  let prevDir = 1
+  return (
+    data
+      .sort((a, b) => a.ledIndex - b.ledIndex)
+      .map((node) => {
+        const dir = prevPos === 0 ? 1 : normalize(node.posIndex - prevPos)
+        if (dir !== prevDir) {
+          verticalIndex += 1
+          prevDir = dir
+        }
+        prevPos = node.posIndex
+        return {
+          ...node,
+          x: 25 + node.posIndex * SPACING,
+          y: 25 + verticalIndex * SPACING,
+        }
+      })
+  )
 }
 
 function moveNode(data: DraggableNode[], ledIndex: number, newPos: number): DraggableNode[] {
@@ -92,12 +99,28 @@ export const MappingCanvas = ({initialConfig, highlightNode}: Props) => {
     setHighlightNode(parseInt(e.currentTarget.id()))
   })
 
-  const height = Math.max(...nodes.map((node) => node.y)) + 50
-  const width = Math.max(...nodes.map((node) => node.x)) + 50
+  const height = Math.max(...nodes.map((node) => node.y)) + SPACING
+  const width = Math.max(...nodes.map((node) => node.x)) + SPACING
+  const barsX = initialConfig.length + 1
+  const barsY = Math.ceil(height / SPACING)
 
   return (
-    <Stage width={width} height={height}>
+    <Stage width={width} height={height} style={{overflowX: 'scroll'}}>
       <Layer>
+        {[...Array(barsX)].map((_, i) => (
+          <Line key={i} y={0} x={i * SPACING} points={[0,0,0,height]} stroke="black" strokeWidth={1} opacity={0.3} />
+        ))}
+        {[...Array(barsY)].map((_, i) => (
+          <Line key={i} y={i * SPACING} x={0} points={[0,0,width,0]} stroke="black" strokeWidth={1} opacity={0.3} />
+        ))}
+      </Layer>
+      <Layer>
+        <Line
+          x={0}
+          y={0}
+          points={nodes.flatMap((node) => [node.x, node.y])}
+          stroke="black"
+        />
         {nodes.map((node) => (
           <Group
             key={node.ledIndex}
