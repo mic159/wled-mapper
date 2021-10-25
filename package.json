@@ -12,6 +12,8 @@
     "semantic-ui-react": "^2.0.4"
   },
   "scripts": {
+    "start": "parcel index.html",
+    "build": "parcel build index.html",
     "dev": "parcel index.html"
   }
 }

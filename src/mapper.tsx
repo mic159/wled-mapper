@@ -12,7 +12,7 @@ interface DraggableNode extends NodeConfig {
 interface Props {
   initialConfig: NodeConfig[]
   highlightNode: (idx: number) => void
-  //saveData?: (DraggableNode[]) => void
+  writeLedMapping?: (data: NodeConfig[]) => void
 }
 
 const CIRCLE_RADIUS = 13;
@@ -60,7 +60,7 @@ function moveNode(data: DraggableNode[], ledIndex: number, newPos: number): Drag
   })
 }
 
-export const MappingCanvas = ({initialConfig, highlightNode}: Props) => {
+export const MappingCanvas = ({initialConfig, highlightNode, writeLedMapping}: Props) => {
   const [highlightedNode, setHighlightNode] = useState<number|null>(null)
   const initialPositions = useMemo(() => generatePositions(initialConfig), [initialConfig])
   const [nodes, setNodes] = useState<DraggableNode[]>(initialPositions)
@@ -77,7 +77,9 @@ export const MappingCanvas = ({initialConfig, highlightNode}: Props) => {
     const ledIndex = parseInt(e.target.id())
     const pos = e.target.absolutePosition().x
     const newPosIndex = Math.min(Math.max(Math.round((pos - 25) / SPACING), 0), nodes.length)
-    setNodes(generatePositions(moveNode(nodes, ledIndex, newPosIndex)))
+    const nodeConfigs = generatePositions(moveNode(nodes, ledIndex, newPosIndex))
+    setNodes(nodeConfigs)
+    writeLedMapping(nodeConfigs)
   })
   const handleDragMove = useCallback((e) => {
     const id = parseInt(e.target.id())

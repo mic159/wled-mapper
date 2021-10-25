@@ -27,6 +27,10 @@ const App = () => {
     device.highlightPixel(idx)
   })
 
+  const writeLedMapping = useCallback((data) => {
+    device.writeLedMapping(data)
+  })
+
   return (
     <Fragment>
       <Menu inverted fluid>
@@ -40,7 +44,11 @@ const App = () => {
       {!connected ? (
         <p>Connecting...</p>
       ): (
-        <MappingCanvas initialConfig={device.generateNodes()} highlightNode={setHighlight} />
+        <MappingCanvas
+          initialConfig={device.generateNodes()}
+          highlightNode={setHighlight}
+          writeLedMapping={writeLedMapping}
+        />
       )}
     </Fragment>
   )

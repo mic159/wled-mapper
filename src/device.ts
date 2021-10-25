@@ -34,13 +34,17 @@ export class WledDevice {
     this.ip = ip
   }
 
-  fetch(path: string, opts?) {
+  fetch(path: string, fetchOpts?, json = true) {
     const url = new URL(path, `http://${this.ip}/`)
-    return fetch(url.toString(), opts).then(resp => (resp.json()))
+    const promise = fetch(url.toString(), fetchOpts)
+    if (json) {
+      return promise.then(resp => (resp.json()))
+    }
+    return promise
   }
 
   async refreshConfig(): Promise<void> {
-    const result = await this.fetch("cfg.json")
+    const result = await this.fetch("/cfg.json")
     if (result.rev?.length !== 2 || result.rev[0] !== 1 || result.rev[1] !== 0) {
       throw new Error("Bad config")
     }
@@ -53,13 +57,29 @@ export class WledDevice {
 
   async getLedMapping(): Promise<void> {
     try {
-      const result = await this.fetch("edit?edit=ledmap.json")
+      const result = await this.fetch("/edit?edit=ledmap.json")
       console.log("Current mapping", result)
       this.pixelMapping = result.map
     } catch (err) {
-      console.warn("No mapping")
+      console.warn("No mapping", err)
       return
     }
+  }
+
+  async writeLedMapping(newConfig: NodeConfig[]): Promise<void> {
+    const data = [...newConfig].sort((a, b) => a.posIndex - b.posIndex).map(node => node.ledIndex)
+    const form = new FormData()
+    const blob = new Blob([JSON.stringify({map: data})], {type: 'application/json'})
+    form.append("data", blob, 'ledmap.json')
+    const result = await this.fetch(
+      "/edit",
+      {method: 'POST', body: form},
+      false
+    )
+    if (!result.ok) {
+      debugger
+    }
+    this.pixelMapping = data
   }
 
   generateNodes(): NodeConfig[] {
