@@ -24,6 +24,10 @@ function indexGuard(idx: number) : number|undefined {
   return (idx === -1) ? undefined : idx
 }
 
+function isEqual(a:PixelMapping, b:PixelMapping): boolean {
+  return a.length === b.length && a.every((value, index) => value === b[index])
+}
+
 export class WledDevice {
   ip: string;
   config?: WledConfig;
@@ -68,6 +72,9 @@ export class WledDevice {
 
   async writeLedMapping(newConfig: NodeConfig[]): Promise<void> {
     const data = [...newConfig].sort((a, b) => a.posIndex - b.posIndex).map(node => node.ledIndex)
+    if (isEqual(data, this.pixelMapping)) {
+      return
+    }
     const form = new FormData()
     const blob = new Blob([JSON.stringify({map: data})], {type: 'application/json'})
     form.append("data", blob, 'ledmap.json')
@@ -79,7 +86,15 @@ export class WledDevice {
     if (!result.ok) {
       debugger
     }
+    // const saveForm = new URLSearchParams()
+    // saveForm.append('test', 'true')
+    // await this.fetch(
+    //   'settings/leds',
+    //   {method: 'POST', body: saveForm},
+    //   false
+    // )
     this.pixelMapping = data
+
   }
 
   generateNodes(): NodeConfig[] {
@@ -117,4 +132,25 @@ export class WledDevice {
         this.fetchInProgress = false
       })
   }
+}
+
+
+export class FakeDevice {
+  numLeds: number
+
+  constructor(numLeds: number) {
+    this.numLeds = numLeds
+  }
+
+  generateNodes(): NodeConfig[] {
+    return [...Array(this.numLeds)].map((_, i) => {
+      return {
+        ledIndex: i,
+        posIndex: i,
+      }
+    })
+  }
+
+  highlightPixel(ledIndex: number): void {}
+  writeLedMapping(): void {}
 }
