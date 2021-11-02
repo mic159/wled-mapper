@@ -24,15 +24,28 @@ function indexGuard(idx: number) : number|undefined {
   return (idx === -1) ? undefined : idx
 }
 
-function isEqual(a:PixelMapping, b:PixelMapping): boolean {
+export function isEqual(a:PixelMapping, b:PixelMapping): boolean {
   return a.length === b.length && a.every((value, index) => value === b[index])
 }
 
-export class WledDevice {
-  ip: string;
-  config?: WledConfig;
-  pixelMapping?: PixelMapping;
-  fetchInProgress: boolean = false;
+export enum DeviceType {
+  WLED = 'WLED',
+  Fake = 'Fake'
+}
+
+export abstract class Device {
+  type: DeviceType
+  abstract connect(): Promise<[void, void]>
+  abstract highlightPixel(ledIndex: number): void
+  abstract generateNodes(): NodeConfig[]
+}
+
+export class WledDevice implements Device {
+  type = DeviceType.WLED
+  ip: string
+  config?: WledConfig
+  pixelMapping?: PixelMapping
+  fetchInProgress: boolean = false
 
   constructor(ip: string) {
     this.ip = ip
@@ -70,6 +83,10 @@ export class WledDevice {
     }
   }
 
+  connect(): Promise<[void, void]> {
+    return Promise.all([this.refreshConfig(), this.getLedMapping()])
+  }
+
   async writeLedMapping(newConfig: NodeConfig[]): Promise<void> {
     const data = [...newConfig].sort((a, b) => a.posIndex - b.posIndex).map(node => node.ledIndex)
     if (isEqual(data, this.pixelMapping)) {
@@ -98,7 +115,8 @@ export class WledDevice {
   }
 
   generateNodes(): NodeConfig[] {
-    const total = this.getPinMapping().total
+    const total = this.getPinMapping()?.total
+    if (!total) return []
     const existingMap: NodeConfig[] = this.pixelMapping?.map(
       (ledIndex, posIndex) => ({ledIndex, posIndex})
     ).sort((a, b) => (a.ledIndex - b.ledIndex)) ?? []
@@ -135,11 +153,16 @@ export class WledDevice {
 }
 
 
-export class FakeDevice {
+export class FakeDevice implements Device {
+  type = DeviceType.Fake
   numLeds: number
 
   constructor(numLeds: number) {
     this.numLeds = numLeds
+  }
+
+  connect(): Promise<[void, void]> {
+    return new Promise((resolve) => resolve(undefined))
   }
 
   generateNodes(): NodeConfig[] {

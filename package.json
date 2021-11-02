@@ -15,5 +15,8 @@
     "start": "parcel index.html",
     "build": "parcel build index.html",
     "dev": "parcel index.html"
+  },
+  "devDependencies": {
+    "@types/react": "^17.0.33"
   }
 }

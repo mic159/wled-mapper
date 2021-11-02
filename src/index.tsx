@@ -3,15 +3,13 @@ import {render} from "react-dom"
 
 import { Modal, Menu, Button, Header as SemanticHeader, Icon, Form, Message } from 'semantic-ui-react'
 import { MappingCanvas } from './mapper'
-import { FakeDevice, WledDevice } from "./device"
+import { FakeDevice, WledDevice, Device, DeviceType } from "./device"
 
 import 'fomantic-ui-css/semantic.css'
 import logo from "../static/001_cheerful.png"
+import { NodeConfig } from "./types"
 
 const IP = "10.10.1.193"//"10.10.1.27"
-// const device: WledDevice = window.device ?? new WledDevice(IP)
-// window.device = device
-
 
 const ConnectModal = ({handleConnect, error, loading}) => (
   <Modal
@@ -67,6 +65,7 @@ const StandaloneModal = ({handleStandalone}) => (
           placeholder="18"
           required
         />
+        <Form.TextArea label='About' placeholder='Tell us more about you...' />
       </Modal.Description>
     </Modal.Content>
     <Modal.Actions>
@@ -75,25 +74,56 @@ const StandaloneModal = ({handleStandalone}) => (
   </Modal>
 )
 
+const SaveModal = ({device, mapping}: {mapping: NodeConfig[], device: Device}) => {
+  const data = [...mapping].sort((a, b) => a.posIndex - b.posIndex).map(node => node.ledIndex)
+  const json = JSON.stringify({map: data})
+  return (
+    <Modal
+      trigger={<Menu.Item>Save</Menu.Item>}
+      closeIcon
+      as={Form}
+    >
+      <Modal.Header>Save Mapping</Modal.Header>
+      <Modal.Content>
+        <Modal.Description>
+          {device.type === DeviceType.WLED && (
+            <Message>test</Message>
+          )}
+          <Form.TextArea value={json} />
+        </Modal.Description>
+      </Modal.Content>
+    </Modal>
+  )
+}
+
 const App = () => {
-  const [device, setDevice] = useState<WledDevice|FakeDevice|null>(window.device ?? null)
+  const [device, setDevice] = useState<Device|null>(window.device ?? null)
   const [connected, setConnected] = useState<boolean>(device && device.config !== undefined)
   const [error, setError] = useState<string|null>(null)
+  const [mapping, setMapping] = useState<NodeConfig[]>([])
 
-  useEffect(async () => {
+  useEffect(() => {
     if (!connected && device) {
-      await Promise.all([device.refreshConfig(), device.getLedMapping()])
-      setConnected(true)
+      device.connect().then(() => {
+        setConnected(true)
+      })
     }
   }, [])
 
+  useEffect(() => {
+    if (mapping.length === 0 && device && device.generateNodes().length !== 0) {
+      setMapping(device.generateNodes())
+    }
+  }, [device, setMapping, mapping])
+
   const setHighlight = useCallback((idx: number|null) => {
     device.highlightPixel(idx)
-  })
+  }, [device])
 
-  const writeLedMapping = useCallback((data) => {
-    device.writeLedMapping(data)
-  })
+  const writeLedMapping = useCallback((newConfig: NodeConfig[]) => {
+    setMapping(newConfig)
+    //device.writeLedMapping(data)
+  }, [device])
 
   const handleConnect = useCallback((event) => {
     const formData = new FormData(event.target);
@@ -101,7 +131,7 @@ const App = () => {
     const device = new WledDevice(ip)
     setDevice(device)
     window.device = device
-    Promise.all([device.refreshConfig(), device.getLedMapping()])
+    device.connect()
       .catch((err) => {
         setDevice(null)
         window.device = null
@@ -109,7 +139,7 @@ const App = () => {
         return false
       })
       .then((res) => setConnected(res !== false))
-  })
+  }, [])
 
   const handleStandalone = useCallback((event) => {
     const formData = new FormData(event.target);
@@ -118,7 +148,7 @@ const App = () => {
     setDevice(device)
     setConnected(true)
     window.device = device
-  })
+  }, [])
 
   return (
     <Fragment>
@@ -127,7 +157,12 @@ const App = () => {
           <img src={logo} />&nbsp;WLED<br/>Mapper
         </Menu.Item>
         <div className="menu right">
-          <Menu.Item>{connected ? '🟢' : 'Disconnected 🔴'}</Menu.Item>
+          {connected && (
+            <SaveModal
+              device={device}
+              mapping={mapping}
+            />
+          )}
         </div>
       </Menu>
       {!connected ? (

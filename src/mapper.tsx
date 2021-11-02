@@ -72,7 +72,7 @@ export const MappingCanvas = ({initialConfig, highlightNode, writeLedMapping}: P
   const handleDragStart = useCallback((e) => {
     const id = parseInt(e.target.id())
     setHighlightNode(id)
-  })
+  }, [setHighlightNode])
   const handleDragEnd = useCallback((e) => {
     const ledIndex = parseInt(e.target.id())
     const pos = e.target.absolutePosition().x
@@ -80,7 +80,7 @@ export const MappingCanvas = ({initialConfig, highlightNode, writeLedMapping}: P
     const nodeConfigs = generatePositions(moveNode(nodes, ledIndex, newPosIndex))
     setNodes(nodeConfigs)
     writeLedMapping(nodeConfigs)
-  })
+  }, [setNodes, writeLedMapping])
   const handleDragMove = useCallback((e) => {
     const id = parseInt(e.target.id())
     const pos = e.target.absolutePosition()
@@ -96,10 +96,10 @@ export const MappingCanvas = ({initialConfig, highlightNode, writeLedMapping}: P
         return node;
       })
     )
-  })
+  }, [setNodes])
   const handleHighlight = useCallback((e) => {
     setHighlightNode(parseInt(e.currentTarget.id()))
-  })
+  }, [setHighlightNode])
 
   const height = Math.max(...nodes.map((node) => node.y)) + SPACING
   const width = Math.max(...nodes.map((node) => node.x)) + SPACING
