@@ -1,7 +1,7 @@
 import React, {Fragment, useState, useEffect, useCallback} from "react"
 import {render} from "react-dom"
 
-import { Modal, Menu, Button, Header as SemanticHeader, Icon, Form, Message } from 'semantic-ui-react'
+import { Modal, Menu, Button, Header as SemanticHeader, Icon, Form, Message, Divider } from 'semantic-ui-react'
 import { MappingCanvas } from './mapper'
 import { FakeDevice, WledDevice, Device, DeviceType } from "./device"
 
@@ -46,33 +46,72 @@ const ConnectModal = ({handleConnect, error, loading}) => (
   </Modal>
 )
 
-const StandaloneModal = ({handleStandalone}) => (
-  <Modal
-    trigger={<Button>Standalone</Button>}
-    closeIcon
-    as={Form}
-    onSubmit={handleStandalone}
-  >
-    <Modal.Header>Standalone</Modal.Header>
-    <Modal.Content>
-      <Modal.Description>
-        <Form.Input
-          fluid
-          label="Num LEDs"
-          name="count"
-          type="tel"
-          pattern="[0-9]+"
-          placeholder="18"
-          required
-        />
-        <Form.TextArea label='About' placeholder='Tell us more about you...' />
-      </Modal.Description>
-    </Modal.Content>
-    <Modal.Actions>
-      <Button type="submit" primary>Start</Button>
-    </Modal.Actions>
-  </Modal>
-)
+function validateJson(data: string): boolean {
+  try {
+    const parsed = JSON.parse(data)
+    if (Array.isArray(parsed.map) && parsed.map.length > 0 && parsed.map.every(e => typeof e === 'number')) {
+      return true
+    } else {
+      return false
+    }
+  } catch(e) {
+    return false
+  }
+}
+
+const StandaloneModal = ({handleStandalone}) => {
+  const [error, setError] = useState<boolean>(false)
+  const onSubmit = useCallback((event) => {
+    const formData = new FormData(event.target)
+    const numLeds = formData.get('count') as string|null
+    const mapping = formData.get('mapping') as string|null
+    if (!numLeds && !mapping) {
+      setError(true)
+    } else if (numLeds && isNaN(parseInt(numLeds))) {
+      setError(true)
+    } else if (numLeds && parseInt(numLeds) < 0) {
+      setError(true)
+    } else if (mapping && !validateJson(mapping)) {
+      setError(true)
+    } else {
+      setError(false)
+      handleStandalone(event)
+    }
+  }, [setError, handleStandalone])
+  return (
+    <Modal
+      trigger={<Button>Standalone</Button>}
+      closeIcon
+      as={Form}
+      onSubmit={onSubmit}
+      error={error}
+    >
+      <Modal.Header>Standalone</Modal.Header>
+      <Modal.Content>
+        <Modal.Description>
+          <Form.Input
+            fluid
+            label="Num LEDs"
+            name="count"
+            type="tel"
+            pattern="[0-9]+"
+            placeholder="18"
+          />
+          <Divider content="OR" horizontal />
+          <Form.TextArea
+            label="ledmap.json"
+            name="mapping"
+            placeholder={'{"map": [1,2,3,4,5]}'}
+          />
+          <Message error content="Please enter one of the above" />
+        </Modal.Description>
+      </Modal.Content>
+      <Modal.Actions>
+        <Button type="submit" primary>Start</Button>
+      </Modal.Actions>
+    </Modal>
+  )
+}
 
 const SaveModal = ({device, mapping}: {mapping: NodeConfig[], device: Device}) => {
   const data = [...mapping].sort((a, b) => a.posIndex - b.posIndex).map(node => node.ledIndex)
@@ -87,11 +126,19 @@ const SaveModal = ({device, mapping}: {mapping: NodeConfig[], device: Device}) =
       <Modal.Content>
         <Modal.Description>
           {device.type === DeviceType.WLED && (
-            <Message>test</Message>
+            <Message warning>
+              <Message.Header>Action Needed</Message.Header>
+              After writing the new mapping, you need to press "save" in the LED configuration page.
+            </Message>
           )}
           <Form.TextArea value={json} />
         </Modal.Description>
       </Modal.Content>
+      {device.type === DeviceType.WLED && (
+        <Modal.Actions>
+          <Button primary>Write</Button>
+        </Modal.Actions>
+      )}
     </Modal>
   )
 }
@@ -120,14 +167,14 @@ const App = () => {
     device.highlightPixel(idx)
   }, [device])
 
-  const writeLedMapping = useCallback((newConfig: NodeConfig[]) => {
+  const updateLedMapping = useCallback((newConfig: NodeConfig[]) => {
     setMapping(newConfig)
     //device.writeLedMapping(data)
-  }, [device])
+  }, [setMapping])
 
   const handleConnect = useCallback((event) => {
-    const formData = new FormData(event.target);
-    const ip = formData.get('ip_address') as string
+    const formData = new FormData(event.target)
+    const ip = formData.get('ip_address') as string|null
     const device = new WledDevice(ip)
     setDevice(device)
     window.device = device
@@ -142,9 +189,10 @@ const App = () => {
   }, [])
 
   const handleStandalone = useCallback((event) => {
-    const formData = new FormData(event.target);
-    const numLeds = formData.get('count') as string
-    const device = new FakeDevice(parseInt(numLeds))
+    const formData = new FormData(event.target)
+    const numLeds = formData.get('count') as string|null
+    const mapping = formData.get('mapping') as string|null
+    const device = new FakeDevice(numLeds, mapping)
     setDevice(device)
     setConnected(true)
     window.device = device
@@ -187,7 +235,7 @@ const App = () => {
         <MappingCanvas
           initialConfig={device.generateNodes()}
           highlightNode={setHighlight}
-          writeLedMapping={writeLedMapping}
+          writeLedMapping={updateLedMapping}
         />
       )}
     </Fragment>

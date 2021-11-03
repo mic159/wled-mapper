@@ -62,7 +62,10 @@ function moveNode(data: DraggableNode[], ledIndex: number, newPos: number): Drag
 
 export const MappingCanvas = ({initialConfig, highlightNode, writeLedMapping}: Props) => {
   const [highlightedNode, setHighlightNode] = useState<number|null>(null)
-  const initialPositions = useMemo(() => generatePositions(initialConfig), [initialConfig])
+  const initialPositions = useMemo(
+    () => generatePositions(initialConfig),
+    initialConfig.map(node => node.posIndex)
+  )
   const [nodes, setNodes] = useState<DraggableNode[]>(initialPositions)
 
   useEffect(() => {
@@ -80,7 +83,7 @@ export const MappingCanvas = ({initialConfig, highlightNode, writeLedMapping}: P
     const nodeConfigs = generatePositions(moveNode(nodes, ledIndex, newPosIndex))
     setNodes(nodeConfigs)
     writeLedMapping(nodeConfigs)
-  }, [setNodes, writeLedMapping])
+  }, [setNodes, writeLedMapping, nodes])
   const handleDragMove = useCallback((e) => {
     const id = parseInt(e.target.id())
     const pos = e.target.absolutePosition()
@@ -96,7 +99,7 @@ export const MappingCanvas = ({initialConfig, highlightNode, writeLedMapping}: P
         return node;
       })
     )
-  }, [setNodes])
+  }, [setNodes, nodes])
   const handleHighlight = useCallback((e) => {
     setHighlightNode(parseInt(e.currentTarget.id()))
   }, [setHighlightNode])

@@ -156,9 +156,15 @@ export class WledDevice implements Device {
 export class FakeDevice implements Device {
   type = DeviceType.Fake
   numLeds: number
+  pixelMapping?: PixelMapping
 
-  constructor(numLeds: number) {
-    this.numLeds = numLeds
+  constructor(numLeds: string|null, pixelMapping: string|null) {
+    if (pixelMapping) {
+      this.pixelMapping = JSON.parse(pixelMapping).map
+      this.numLeds = this.pixelMapping.length
+    } else {
+      this.numLeds = parseInt(numLeds)
+    }
   }
 
   connect(): Promise<[void, void]> {
@@ -166,6 +172,11 @@ export class FakeDevice implements Device {
   }
 
   generateNodes(): NodeConfig[] {
+    if (this.pixelMapping) {
+      return this.pixelMapping.map(
+        (ledIndex, posIndex) => ({ledIndex, posIndex})
+      ).sort((a, b) => (a.ledIndex - b.ledIndex))
+    }
     return [...Array(this.numLeds)].map((_, i) => {
       return {
         ledIndex: i,
