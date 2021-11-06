@@ -13,8 +13,10 @@
   },
   "scripts": {
     "start": "parcel index.html",
-    "build": "parcel build index.html",
-    "dev": "parcel index.html"
+    "build": "NODE_ENV=production parcel build index.html --public-url ./",
+    "dev": "parcel index.html",
+    "predeploy": "yarn build",
+    "deploy": "gh-pages -d dist"
   },
   "devDependencies": {
     "@types/react": "^17.0.33"
