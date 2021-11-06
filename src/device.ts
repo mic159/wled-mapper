@@ -18,14 +18,16 @@ interface WledConfig {
   }
 }
 
-type PixelMapping = number[]
+interface LedMapJson {
+  map: number[]
+}
 
 function indexGuard(idx: number) : number|undefined {
   return (idx === -1) ? undefined : idx
 }
 
-export function isEqual(a:PixelMapping, b:PixelMapping): boolean {
-  return a.length === b.length && a.every((value, index) => value === b[index])
+export function isEqual(a:LedMapJson, b:LedMapJson): boolean {
+  return a.map.length === b.map.length && a.map.every((value, index) => value === b[index])
 }
 
 export enum DeviceType {
@@ -38,22 +40,33 @@ export abstract class Device {
   abstract connect(): Promise<[void, void]>
   abstract highlightPixel(ledIndex: number): void
   abstract generateNodes(): NodeConfig[]
+  abstract writeLedMapping(newConfig: NodeConfig[]): Promise<void>
+  abstract hasChanges(newConfig: NodeConfig[]): boolean
+  convertToJSON(mapping: NodeConfig[]): LedMapJson {
+    const data = [...mapping].sort((a, b) => a.posIndex - b.posIndex).map(node => node.ledIndex)
+    return {map: data}
+  }
 }
 
-export class WledDevice implements Device {
+export class WledDevice extends Device {
   type = DeviceType.WLED
   ip: string
   config?: WledConfig
-  pixelMapping?: PixelMapping
+  pixelMapping?: LedMapJson
   fetchInProgress: boolean = false
 
   constructor(ip: string) {
+    super()
     this.ip = ip
   }
 
-  fetch(path: string, fetchOpts?, json = true) {
+  getUrl(path: string): string {
     const url = new URL(path, `http://${this.ip}/`)
-    const promise = fetch(url.toString(), fetchOpts)
+    return url.toString()
+  }
+
+  fetch(path: string, fetchOpts?, json = true) {
+    const promise = fetch(this.getUrl(path), fetchOpts)
     if (json) {
       return promise.then(resp => (resp.json()))
     }
@@ -76,7 +89,7 @@ export class WledDevice implements Device {
     try {
       const result = await this.fetch("/edit?edit=ledmap.json")
       console.log("Current mapping", result)
-      this.pixelMapping = result.map
+      this.pixelMapping = result
     } catch (err) {
       console.warn("No mapping", err)
       return
@@ -87,37 +100,36 @@ export class WledDevice implements Device {
     return Promise.all([this.refreshConfig(), this.getLedMapping()])
   }
 
+  hasChanges(newConfig: NodeConfig[]): boolean {
+    const data = this.convertToJSON(newConfig)
+    console.log("hasChanges", data, this.pixelMapping)
+    return !isEqual(data, this.pixelMapping)
+  }
+
   async writeLedMapping(newConfig: NodeConfig[]): Promise<void> {
-    const data = [...newConfig].sort((a, b) => a.posIndex - b.posIndex).map(node => node.ledIndex)
+    const data = this.convertToJSON(newConfig)
     if (isEqual(data, this.pixelMapping)) {
       return
     }
     const form = new FormData()
-    const blob = new Blob([JSON.stringify({map: data})], {type: 'application/json'})
+    const blob = new Blob([JSON.stringify(data)], {type: 'application/json'})
     form.append("data", blob, 'ledmap.json')
     const result = await this.fetch(
       "/edit",
       {method: 'POST', body: form},
       false
     )
+    console.log("Wrote", data)
     if (!result.ok) {
       debugger
     }
-    // const saveForm = new URLSearchParams()
-    // saveForm.append('test', 'true')
-    // await this.fetch(
-    //   'settings/leds',
-    //   {method: 'POST', body: saveForm},
-    //   false
-    // )
     this.pixelMapping = data
-
   }
 
   generateNodes(): NodeConfig[] {
     const total = this.getPinMapping()?.total
     if (!total) return []
-    const existingMap: NodeConfig[] = this.pixelMapping?.map(
+    const existingMap: NodeConfig[] = this.pixelMapping?.map.map(
       (ledIndex, posIndex) => ({ledIndex, posIndex})
     ).sort((a, b) => (a.ledIndex - b.ledIndex)) ?? []
     return [...Array(total)].map((_, i) => {
@@ -137,7 +149,7 @@ export class WledDevice implements Device {
     if (this.fetchInProgress) {return}
     this.fetchInProgress = true
     // Segments work after the mapping, so we need to referse the mapping to highlight the right pixel.
-    const posIndex = indexGuard(this.pixelMapping?.indexOf(ledIndex)) ?? ledIndex
+    const posIndex = indexGuard(this.pixelMapping?.map.indexOf(ledIndex)) ?? ledIndex
     const body = {
       seg: {id: 1, start: posIndex, stop: posIndex+1, grp: 1, spc: 0, of: 0}, v: true, time: this.genTimestamp()
     }
@@ -152,18 +164,25 @@ export class WledDevice implements Device {
   }
 }
 
-
-export class FakeDevice implements Device {
+export class FakeDevice extends Device {
   type = DeviceType.Fake
   numLeds: number
-  pixelMapping?: PixelMapping
+  pixelMapping?: LedMapJson
 
   constructor(numLeds: string|null, pixelMapping: string|null) {
+    super()
     if (pixelMapping) {
-      this.pixelMapping = JSON.parse(pixelMapping).map
-      this.numLeds = this.pixelMapping.length
+      this.pixelMapping = JSON.parse(pixelMapping)
+      this.numLeds = this.pixelMapping.map.length
     } else {
       this.numLeds = parseInt(numLeds)
+      const data = [...Array(this.numLeds)].map((_, i) => {
+        return {
+          ledIndex: i,
+          posIndex: i,
+        }
+      })
+      this.pixelMapping = this.convertToJSON(data)
     }
   }
 
@@ -172,19 +191,20 @@ export class FakeDevice implements Device {
   }
 
   generateNodes(): NodeConfig[] {
-    if (this.pixelMapping) {
-      return this.pixelMapping.map(
-        (ledIndex, posIndex) => ({ledIndex, posIndex})
-      ).sort((a, b) => (a.ledIndex - b.ledIndex))
-    }
-    return [...Array(this.numLeds)].map((_, i) => {
-      return {
-        ledIndex: i,
-        posIndex: i,
-      }
-    })
+    return this.pixelMapping.map.map(
+      (ledIndex, posIndex) => ({ledIndex, posIndex})
+    ).sort((a, b) => (a.ledIndex - b.ledIndex))
+  }
+
+  hasChanges(newConfig: NodeConfig[]): boolean {
+    const data = this.convertToJSON(newConfig)
+    return isEqual(data, this.pixelMapping)
   }
 
   highlightPixel(ledIndex: number): void {}
-  writeLedMapping(): void {}
+
+  async writeLedMapping(newConfig: NodeConfig[]) {
+    const data = this.convertToJSON(newConfig)
+    this.pixelMapping = data
+  }
 }

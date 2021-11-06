@@ -1,15 +1,13 @@
 import React, {Fragment, useState, useEffect, useCallback} from "react"
 import {render} from "react-dom"
 
-import { Modal, Menu, Button, Header as SemanticHeader, Icon, Form, Message, Divider } from 'semantic-ui-react'
+import { Modal, Menu, Button, Header as SemanticHeader, Icon, Form, Message, Divider, Loader } from 'semantic-ui-react'
 import { MappingCanvas } from './mapper'
 import { FakeDevice, WledDevice, Device, DeviceType } from "./device"
 
 import 'fomantic-ui-css/semantic.css'
 import logo from "../static/001_cheerful.png"
 import { NodeConfig } from "./types"
-
-const IP = "10.10.1.193"//"10.10.1.27"
 
 const ConnectModal = ({handleConnect, error, loading}) => (
   <Modal
@@ -113,39 +111,87 @@ const StandaloneModal = ({handleStandalone}) => {
   )
 }
 
-const SaveModal = ({device, mapping}: {mapping: NodeConfig[], device: Device}) => {
-  const data = [...mapping].sort((a, b) => a.posIndex - b.posIndex).map(node => node.ledIndex)
-  const json = JSON.stringify({map: data})
+const SaveWledModal = ({device, mapping}: {mapping: NodeConfig[], device: WledDevice}) => {
+  const [open, setOpen] = useState<boolean>(false)
+  const [done, setDone] = useState<boolean>(false)
+  const toggleOpen = useCallback(() => {
+    setOpen(!open)
+    setDone(false)
+  }, [open])
+
+  useEffect(() => {
+    if (open && !done) {
+      device.writeLedMapping(mapping).then(() => {
+        setDone(true)
+      })
+    }
+  }, [open, done, mapping, device])
+
+  return (
+    <Modal
+      open={open}
+      onClose={toggleOpen}
+      onOpen={toggleOpen}
+      size="tiny"
+      trigger={<Menu.Item>{device.hasChanges(mapping) ? "Save" : "Up to date"}</Menu.Item>}
+      closeIcon
+    >
+      <Modal.Header>{!done ? "Save Mapping" : "Saved"}</Modal.Header>
+      <Modal.Content>
+        <Modal.Description>
+          {!done ? (
+            <Loader active inline="centered">Saving ledmap.json</Loader>
+          ):(
+            <div style={{textAlign: 'center'}}>
+              <SemanticHeader as="h2" icon>
+                <Icon name="exclamation triangle" />
+                <SemanticHeader.Content>Action Needed</SemanticHeader.Content>
+              </SemanticHeader>
+              <p>
+                Please open the{' '}
+                <a href={device.getUrl("/settings/leds")} target="_blank" rel="noopener noreferrer">
+                  LED preferences page <Icon name="external" />
+                </a>{' '}
+                and press <b>Save</b>.
+              </p>
+              <p>
+                Why? The mapping won't take effect untill you click save,<br/>
+                and the pixel highlighting will be off.
+              </p>
+            </div>
+          )}
+        </Modal.Description>
+      </Modal.Content>
+      <Modal.Actions>
+        <Button primary onClick={toggleOpen}>Done</Button>
+      </Modal.Actions>
+    </Modal>
+  )
+}
+
+const SaveStandaloneModal = ({device, mapping}: {mapping: NodeConfig[], device: Device}) => {
+  const data = device.convertToJSON(mapping)
+  const json = JSON.stringify(data)
   return (
     <Modal
       trigger={<Menu.Item>Save</Menu.Item>}
       closeIcon
-      as={Form}
     >
       <Modal.Header>Save Mapping</Modal.Header>
       <Modal.Content>
         <Modal.Description>
-          {device.type === DeviceType.WLED && (
-            <Message warning>
-              <Message.Header>Action Needed</Message.Header>
-              After writing the new mapping, you need to press "save" in the LED configuration page.
-            </Message>
-          )}
-          <Form.TextArea value={json} />
+          <Form>
+            <Form.TextArea value={json} />
+          </Form>
         </Modal.Description>
       </Modal.Content>
-      {device.type === DeviceType.WLED && (
-        <Modal.Actions>
-          <Button primary>Write</Button>
-        </Modal.Actions>
-      )}
     </Modal>
   )
 }
 
 const App = () => {
-  const [device, setDevice] = useState<Device|null>(window.device ?? null)
-  const [connected, setConnected] = useState<boolean>(device && device.config !== undefined)
+  const [device, setDevice] = useState<Device|null>(null)
+  const [connected, setConnected] = useState<boolean>(false)
   const [error, setError] = useState<string|null>(null)
   const [mapping, setMapping] = useState<NodeConfig[]>([])
 
@@ -177,11 +223,9 @@ const App = () => {
     const ip = formData.get('ip_address') as string|null
     const device = new WledDevice(ip)
     setDevice(device)
-    window.device = device
     device.connect()
       .catch((err) => {
         setDevice(null)
-        window.device = null
         setError(err.toString())
         return false
       })
@@ -195,7 +239,6 @@ const App = () => {
     const device = new FakeDevice(numLeds, mapping)
     setDevice(device)
     setConnected(true)
-    window.device = device
   }, [])
 
   return (
@@ -206,10 +249,23 @@ const App = () => {
         </Menu.Item>
         <div className="menu right">
           {connected && (
-            <SaveModal
-              device={device}
-              mapping={mapping}
-            />
+            device.hasChanges(mapping) ? (
+              device.type === DeviceType.Fake ? (
+                <SaveStandaloneModal
+                  device={device}
+                  mapping={mapping}
+                />
+              ) : (
+                <SaveWledModal
+                  device={device as WledDevice}
+                  mapping={mapping}
+                />
+              )
+            ) : (
+              <Menu.Item>
+                No changes
+              </Menu.Item>
+            )
           )}
         </div>
       </Menu>
