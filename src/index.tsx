@@ -25,7 +25,7 @@ const ConnectModal = ({handleConnect, error, loading}) => (
           fluid
           label="IP Address"
           name="ip_address"
-          value={"10.10.1.193"}
+          placeholder={"10.10.1.193"}
           loading={loading}
           readOnly={loading}
           required
