@@ -14,6 +14,7 @@ const ConnectModal = ({handleConnect, error, loading}) => (
     trigger={<Button>Connect</Button>}
     closeIcon
     as={Form}
+    size="tiny"
     onSubmit={handleConnect}
     error={!!error}
   >
@@ -24,7 +25,7 @@ const ConnectModal = ({handleConnect, error, loading}) => (
           fluid
           label="IP Address"
           name="ip_address"
-          placeholder={IP}
+          value={"10.10.1.193"}
           loading={loading}
           readOnly={loading}
           required
@@ -81,6 +82,7 @@ const StandaloneModal = ({handleStandalone}) => {
       trigger={<Button>Standalone</Button>}
       closeIcon
       as={Form}
+      size="small"
       onSubmit={onSubmit}
       error={error}
     >
@@ -207,7 +209,7 @@ const App = () => {
     if (mapping.length === 0 && device && device.generateNodes().length !== 0) {
       setMapping(device.generateNodes())
     }
-  }, [device, setMapping, mapping])
+  }, [device, setMapping, mapping, connected])
 
   const setHighlight = useCallback((idx: number|null) => {
     device.highlightPixel(idx)
@@ -215,7 +217,6 @@ const App = () => {
 
   const updateLedMapping = useCallback((newConfig: NodeConfig[]) => {
     setMapping(newConfig)
-    //device.writeLedMapping(data)
   }, [setMapping])
 
   const handleConnect = useCallback((event) => {

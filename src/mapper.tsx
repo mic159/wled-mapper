@@ -17,6 +17,7 @@ interface Props {
 
 const CIRCLE_RADIUS = 13;
 const SPACING = 50;
+const TOP_PADDING = 25;
 
 function normalize(val: number): number {
   return Math.max(-1, Math.min(1, val))
@@ -38,8 +39,8 @@ function generatePositions(data: NodeConfig[]): DraggableNode[] {
         prevPos = node.posIndex
         return {
           ...node,
-          x: 25 + node.posIndex * SPACING,
-          y: 25 + verticalIndex * SPACING,
+          x: (SPACING / 2) + node.posIndex * SPACING,
+          y: TOP_PADDING + (SPACING / 2) + verticalIndex * SPACING,
         }
       })
   )
@@ -79,7 +80,7 @@ export const MappingCanvas = ({initialConfig, highlightNode, writeLedMapping}: P
   const handleDragEnd = useCallback((e) => {
     const ledIndex = parseInt(e.target.id())
     const pos = e.target.absolutePosition().x
-    const newPosIndex = Math.min(Math.max(Math.round((pos - 25) / SPACING), 0), nodes.length)
+    const newPosIndex = Math.min(Math.max(Math.round((pos - 25) / SPACING), 0), nodes.length - 1)
     const nodeConfigs = generatePositions(moveNode(nodes, ledIndex, newPosIndex))
     setNodes(nodeConfigs)
     writeLedMapping(nodeConfigs)
@@ -116,7 +117,21 @@ export const MappingCanvas = ({initialConfig, highlightNode, writeLedMapping}: P
           <Line key={i} y={0} x={i * SPACING} points={[0,0,0,height]} stroke="black" strokeWidth={1} opacity={0.3} />
         ))}
         {[...Array(barsY)].map((_, i) => (
-          <Line key={i} y={i * SPACING} x={0} points={[0,0,width,0]} stroke="black" strokeWidth={1} opacity={0.3} />
+          <Line key={i} y={TOP_PADDING + i * SPACING} x={0} points={[0,0,width,0]} stroke="black" strokeWidth={1} opacity={0.3} />
+        ))}
+        {[...Array(barsX - 1)].map((_, i) => (
+          <Text
+            key={i}
+            text={i.toString()}
+            align="center"
+            verticalAlign="middle"
+            width={SPACING}
+            height={TOP_PADDING}
+            y={0}
+            x={i * SPACING}
+            opacity={0.3}
+            fontSize={12}
+          />
         ))}
       </Layer>
       <Layer>

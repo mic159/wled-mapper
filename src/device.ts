@@ -27,7 +27,7 @@ function indexGuard(idx: number) : number|undefined {
 }
 
 export function isEqual(a:LedMapJson, b:LedMapJson): boolean {
-  return a.map.length === b.map.length && a.map.every((value, index) => value === b[index])
+  return a.map.length === b.map.length && a.map.every((value, index) => value === b.map[index])
 }
 
 export enum DeviceType {
@@ -88,7 +88,6 @@ export class WledDevice extends Device {
   async getLedMapping(): Promise<void> {
     try {
       const result = await this.fetch("/edit?edit=ledmap.json")
-      console.log("Current mapping", result)
       this.pixelMapping = result
     } catch (err) {
       console.warn("No mapping", err)
@@ -102,7 +101,6 @@ export class WledDevice extends Device {
 
   hasChanges(newConfig: NodeConfig[]): boolean {
     const data = this.convertToJSON(newConfig)
-    console.log("hasChanges", data, this.pixelMapping)
     return !isEqual(data, this.pixelMapping)
   }
 
@@ -119,7 +117,6 @@ export class WledDevice extends Device {
       {method: 'POST', body: form},
       false
     )
-    console.log("Wrote", data)
     if (!result.ok) {
       debugger
     }
@@ -198,7 +195,7 @@ export class FakeDevice extends Device {
 
   hasChanges(newConfig: NodeConfig[]): boolean {
     const data = this.convertToJSON(newConfig)
-    return isEqual(data, this.pixelMapping)
+    return !isEqual(data, this.pixelMapping)
   }
 
   highlightPixel(ledIndex: number): void {}
