@@ -1,7 +1,7 @@
 import React, {Fragment, useState, useEffect, useCallback} from "react"
 import {render} from "react-dom"
 
-import { Modal, Menu, Button, Header as SemanticHeader, Icon, Form, Message, Divider, Loader } from 'semantic-ui-react'
+import { Modal, Menu, Button, Header as SemanticHeader, Icon, Form, Message, Divider, Loader, Segment } from 'semantic-ui-react'
 import { MappingCanvas } from './mapper'
 import { FakeDevice, WledDevice, Device, DeviceType } from "./device"
 
@@ -79,14 +79,14 @@ const StandaloneModal = ({handleStandalone}) => {
   }, [setError, handleStandalone])
   return (
     <Modal
-      trigger={<Button>Standalone</Button>}
+      trigger={<Button>Offline</Button>}
       closeIcon
       as={Form}
       size="small"
       onSubmit={onSubmit}
       error={error}
     >
-      <Modal.Header>Standalone</Modal.Header>
+      <Modal.Header>Offline</Modal.Header>
       <Modal.Content>
         <Modal.Description>
           <Form.Input
@@ -273,20 +273,23 @@ const App = () => {
       {!connected ? (
         <Fragment>
           <SemanticHeader as="h2" icon aligh="center" style={{display: "block"}}>
-            <Icon name="plug" />
-            Disconnected
+            {/* <Icon name="lightbulb" /> */}
+            WLED Mapper
             <SemanticHeader.Subheader>
-              <Button.Group>
-                <ConnectModal 
-                  handleConnect={handleConnect}
-                  error={error}
-                  loading={device && !connected}
-                />
-                <Button.Or />
-                <StandaloneModal handleStandalone={handleStandalone} />
-              </Button.Group>
+              Change the order of lights in WLED
             </SemanticHeader.Subheader>
           </SemanticHeader>
+          <Segment basic textAlign="center">
+            <Button.Group>
+              <ConnectModal 
+                handleConnect={handleConnect}
+                error={error}
+                loading={device && !connected}
+              />
+              <Button.Or />
+              <StandaloneModal handleStandalone={handleStandalone} />
+            </Button.Group>
+          </Segment>
         </Fragment>
       ): (
         <MappingCanvas
