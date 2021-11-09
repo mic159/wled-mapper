@@ -25,16 +25,21 @@ function normalize(val: number): number {
 
 function generatePositions(data: NodeConfig[]): DraggableNode[] {
   let verticalIndex = 0
-  let prevPos = 0
-  let prevDir = 1
+  let prevPos = null
+  let prevDir = null
+  let prevCount = 0
   return (
     data
       .sort((a, b) => a.ledIndex - b.ledIndex)
       .map((node) => {
-        const dir = prevPos === 0 ? 1 : normalize(node.posIndex - prevPos)
-        if (dir !== prevDir) {
+        const dir = prevPos === null ? null : normalize(node.posIndex - prevPos)
+        if(prevDir !== null && dir !== prevDir && prevCount !== 0) {
           verticalIndex += 1
           prevDir = dir
+          prevCount = 0
+        } else {
+          prevDir = dir
+          prevCount += 1
         }
         prevPos = node.posIndex
         return {
