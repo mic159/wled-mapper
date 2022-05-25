@@ -26,7 +26,10 @@ function indexGuard(idx: number) : number|undefined {
   return (idx === -1) ? undefined : idx
 }
 
-export function isEqual(a:LedMapJson, b:LedMapJson): boolean {
+export function isEqual(a: LedMapJson, b: LedMapJson): boolean {
+  if (typeof a === 'undefined' || typeof b === 'undefined') {
+    return false
+  }
   return a.map.length === b.map.length && a.map.every((value, index) => value === b.map[index])
 }
 
@@ -67,6 +70,12 @@ export class WledDevice extends Device {
 
   fetch(path: string, fetchOpts?, json = true) {
     const promise = fetch(this.getUrl(path), fetchOpts)
+      .then(response => {
+        if (!response.ok) {
+          throw Error(response.statusText)
+        }
+        return response
+      })
     if (json) {
       return promise.then(resp => (resp.json()))
     }

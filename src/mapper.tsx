@@ -116,7 +116,7 @@ export const MappingCanvas = ({initialConfig, highlightNode, writeLedMapping}: P
   const barsY = Math.ceil(height / SPACING)
 
   return (
-    <Stage width={width} height={height} style={{overflowX: 'scroll'}}>
+    <Stage width={window.innerWidth} height={height} draggable>
       <Layer>
         {[...Array(barsX)].map((_, i) => (
           <Line key={i} y={0} x={i * SPACING} points={[0,0,0,height]} stroke="black" strokeWidth={1} opacity={0.3} />
